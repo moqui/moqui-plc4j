@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+This software is in the public domain under CC0 1.0 Universal plus a
+Grant of Patent License.
+
+To the extent possible under law, the author(s) have dedicated all
+copyright and related and neighboring rights to this software to the
+public domain worldwide. This software is distributed without any
+warranty.
+
+You should have received a copy of the CC0 Public Domain Dedication
+along with this software (see the LICENSE.md file). If not, see
+<http://creativecommons.org/publicdomain/zero/1.0/>.
+-->
+<entity-facade-xml type="seed">
+    <!-- Device (digital twin) -->
+    <moqui.device.Device deviceId="VIRTUAL_PLC" deviceTypeEnumId="DtPLC" statusFlowId="DeviceBasicStatusFlow" statusId="DbsStandstill"/>
+    <!-- PhysicalDevice -->
+    <moqui.device.PhysicalDevice deviceId="VIRTUAL_PLC" deviceName="Virtual PLC"/>
+
+    <!-- Parameter definitions -->
+    <moqui.math.ParameterDef parameterDefId="Reference" parameterTypeEnumId="PtNumberDecimal"
+        parameterCode="24.01" parameterName="Reference"/>
+    <moqui.math.ParameterDef parameterDefId="Feedback" parameterTypeEnumId="PtNumberDecimal"
+        parameterCode="24.02" parameterName="Feedback"/>
+    <moqui.math.ParameterDef parameterDefId="MainControlWord" parameterTypeEnumId="PtBitSet"
+        parameterCode="24.03" parameterName="MainControlWord"/>
+    <moqui.math.ParameterDef parameterDefId="MainStatusWord" parameterTypeEnumId="PtBitSet"
+        parameterCode="24.04" parameterName="MainStatusWord"/>
+    <moqui.math.ParameterDef parameterDefId="Fault" parameterTypeEnumId="PtTextIndicator"
+        parameterCode="24.05" parameterName="Fault"/>
+    <moqui.math.Parameter parameterId="9000" parameterDefId="Reference" numericValue="300.00" deviceId="VIRTUAL_PLC"/>
+    <moqui.math.Parameter parameterId="9001" parameterDefId="Feedback" numericValue="300.03" deviceId="VIRTUAL_PLC"/>
+    <moqui.math.Parameter parameterId="9002" parameterDefId="MainControlWord" parameterEnumId="1000010001101111" deviceId="VIRTUAL_PLC"/>
+    <moqui.math.Parameter parameterId="9003" parameterDefId="MainStatusWord" parameterEnumId="1000010001101001" deviceId="VIRTUAL_PLC"/>
+    <moqui.math.Parameter parameterId="9004" parameterDefId="Fault" symbolicValue="N" deviceId="VIRTUAL_PLC"/>
+
+    <!-- Device connection using PLC4J simulated driver (simulated://127.0.0.1) -->
+    <moqui.device.DeviceConnection connectionName="SimulatedPlcConnection" deviceId="VIRTUAL_PLC"
+        driverEnumId="DcdSimulated" transportConfig="127.0.0.1"/>
+
+    <!-- Device requests using Plc4j simulated driver -->
+    <moqui.device.DeviceRequest requestName="SimulatedWriteCyclicData" deviceId="VIRTUAL_PLC" priority="1"
+        purposeEnumId="DrpControl" routerEnumId="DrrDirect" connectionName="SimulatedPlcConnection"
+        requestTypeEnumId="DrtWrite"
+        runServiceName="moqui.plc4j.Plc4jServices.run#Plc4jRequest" timeout="10000" onlyChangedParameters="N"/>
+    <!-- Writable simulated tags: STATE/* and STDOUT/* -->
+    <moqui.device.DeviceRequestItem requestName="SimulatedWriteCyclicData" parameterId="9000"
+        sequenceNum="1" query="STATE/9000:REAL" itemTypeEnumId="DritReal"/>
+    <moqui.device.DeviceRequestItem requestName="SimulatedWriteCyclicData" parameterId="9002"
+        sequenceNum="2" query="STATE/9002:UINT" itemTypeEnumId="DritWord"/>
+    <!-- Optional: write a log line to STDOUT -->
+    <moqui.device.DeviceRequestItem requestName="SimulatedWriteCyclicData" parameterId="9004"
+        sequenceNum="3" query="STDOUT/9004:STRING" itemTypeEnumId="DritLWord"/>
+
+    <moqui.device.DeviceRequest requestName="SimulatedBackRead" deviceId="VIRTUAL_PLC" priority="3"
+        purposeEnumId="DrpMonitoring" routerEnumId="DrrDirect" connectionName="SimulatedPlcConnection"
+        requestTypeEnumId="DrtRead"
+        runServiceName="moqui.plc4j.Plc4jServices.run#Plc4jRequest" pollingInterval="250" timeout="10000"/>
+    <!-- Readable simulated tags: STATE/*, RANDOM/*, COUNTER/* -->
+    <moqui.device.DeviceRequestItem requestName="SimulatedBackRead" parameterId="9000"
+        sequenceNum="1" query="STATE/9000:REAL" itemTypeEnumId="DritReal"/>
+    <moqui.device.DeviceRequestItem requestName="SimulatedBackRead" parameterId="9002"
+        sequenceNum="3" query="STATE/9002:UINT" itemTypeEnumId="DritWord"/>
+
+    <moqui.device.DeviceRequest requestName="SimulatedReadCyclicData" deviceId="VIRTUAL_PLC" priority="2"
+        purposeEnumId="DrpStatusMonitoring" routerEnumId="DrrDirect" connectionName="SimulatedPlcConnection"
+        requestTypeEnumId="DrtCyclic"
+        runServiceName="moqui.plc4j.Plc4jServices.run#Plc4jRequest" pollingInterval="250" timeout="10000"/>
+    <moqui.device.DeviceRequestItem requestName="SimulatedReadCyclicData" parameterId="9001"
+        sequenceNum="1" query="STATE/9001:REAL" itemTypeEnumId="DritReal"/>
+    <moqui.device.DeviceRequestItem requestName="SimulatedReadCyclicData" parameterId="9003"
+        sequenceNum="2" query="STATE/9003:UINT" itemTypeEnumId="DritWord"/>
+    <moqui.device.DeviceRequestItem requestName="SimulatedReadCyclicData" parameterId="9004"
+        sequenceNum="3" query="STATE/9004:BOOL" itemTypeEnumId="DritBool"/>
+</entity-facade-xml>

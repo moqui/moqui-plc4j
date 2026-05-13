@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+This software is in the public domain under CC0 1.0 Universal plus a
+Grant of Patent License.
+
+To the extent possible under law, the author(s) have dedicated all
+copyright and related and neighboring rights to this software to the
+public domain worldwide. This software is distributed without any
+warranty.
+
+You should have received a copy of the CC0 Public Domain Dedication
+along with this software (see the LICENSE.md file). If not, see
+<http://creativecommons.org/publicdomain/zero/1.0/>.
+-->
+<services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-3.xsd">
+
+    <!-- ========== Plc4j Request Services ========== -->
+
+    <service verb="run" noun="Plc4jRequest" authenticate="false" transaction="ignore">
+        <description>Implements the run#DeviceRequestInternal interface for Apache Plc4j.</description>
+        <implements service="moqui.device.DeviceServices.run#DeviceRequestInternal"/>
+        <actions><script><![CDATA[
+            import org.moqui.context.ExecutionContext
+            import org.moqui.plc4j.Plc4jToolFactory
+            import org.moqui.plc4j.FieldbusClient
+            import org.moqui.plc4j.Plc4jUtil
+
+            if (!connection) throw new IllegalArgumentException("A connection instance is required for Apache Plc4j to communicate with the device ${request.deviceId}. Device request with name ${request.requestName}, aborted.")
+
+            ExecutionContext ec = context.ec
+            final Plc4jToolFactory tool = ec.getTool(Plc4jToolFactory.TOOL_NAME, Plc4jToolFactory.class)
+
+            String  connectionString = Plc4jUtil.buildConnectionString(connection)
+            ec.logger.info("Connecting to device with ID ${request.deviceId} with connection string ${connectionString}.")
+            // build client via the tool factory
+            try (FieldbusClient client =
+                    (userAccount?.username && userAccount?.currentPassword)
+                    ? tool.getClient(connectionString, userAccount.username, userAccount.currentPassword)
+                    : tool.getClient(connectionString)) {
+
+                // dispatch request
+                if ("DrtRead" == request.requestTypeEnumId) {
+                    client.read(request, bulkRequestItemList, requestItemList)
+                } else if ("DrtWrite" == request.requestTypeEnumId) {
+                    client.write(request, bulkRequestItemList, requestItemList)
+                } else if ("DrtEvent" == request.requestTypeEnumId || "DrtStateChange" == request.requestTypeEnumId
+                        || "DrtCyclic" == request.requestTypeEnumId) {
+                    client.subscribe(request, bulkRequestItemList, requestItemList)
+                } else if ("DrtUnsubscribe" == request.requestTypeEnumId) {
+                    client.unsubscribe(request, requestItemList)
+                } else {
+                    throw new IllegalArgumentException("Unsupported device request type ${request.requestTypeEnumId}. Could not send the device request with name ${request.requestName}.")
+                }
+            }
+        ]]></script></actions>
+    </service>
+</services>
