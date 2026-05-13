@@ -1,0 +1,105 @@
+/*
+ * This software is in the public domain under CC0 1.0 Universal plus a
+ * Grant of Patent License.
+ *
+ * To the extent possible under law, the author(s) have dedicated all
+ * copyright and related and neighboring rights to this software to the
+ * public domain worldwide. This software is distributed without any
+ * warranty.
+ *
+ * You should have received a copy of the CC0 Public Domain Dedication
+ * along with this software (see the LICENSE.md file). If not, see
+ * <http://creativecommons.org/publicdomain/zero/1.0/>.
+ */
+
+apply plugin: 'groovy'
+
+def componentNode = parseComponent(project)
+version = componentNode.'@version'
+def jarBaseName = componentNode.'@name'
+def moquiDir = projectDir.parentFile.parentFile.parentFile
+def frameworkDir = file(moquiDir.absolutePath + '/framework')
+
+// to run use "gradle dependencyUpdates"
+apply plugin: 'com.github.ben-manes.versions'
+dependencyUpdates.resolutionStrategy = { componentSelection { rules -> rules.all { ComponentSelection selection ->
+    boolean rejected = ['alpha', 'beta', 'rc', 'cr', 'm', 'b'].any { qualifier -> selection.candidate.version ==~ /(?i).*[.-]${qualifier}[.\d-].*/ }
+    if (rejected) selection.reject('Release candidate')
+} } }
+repositories {
+    flatDir name: 'localLib', dirs: frameworkDir.absolutePath + '/lib'
+    mavenCentral()
+    maven { url "https://repository.apache.org/content/repositories/snapshots/" }
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+// Log4J has annotation processors, disable to avoid warning
+tasks.withType(JavaCompile).configureEach { options.compilerArgs << '-proc:none' }
+tasks.withType(GroovyCompile).configureEach {
+    options.compilerArgs << '-proc:none'
+    groovyOptions.optimizationOptions = ['indy': true]
+}
+
+def plc4xVer = '0.13.1'
+def groovyVer = '5.0.3'
+
+dependencies {
+    implementation project(':framework')
+
+    // PLC4J - Apache 2.0 - https://github.com/apache/plc4x
+    implementation "org.apache.plc4x:plc4j-api:${plc4xVer}"
+    implementation "org.apache.plc4x:plc4j-connection-cache:${plc4xVer}"
+    runtimeOnly "org.apache.plc4x:plc4j-driver-all:${plc4xVer}"
+
+    testImplementation project(':framework').configurations.testImplementation.allDependencies
+    testImplementation platform("org.spockframework:spock-bom:2.4-groovy-5.0")
+    testImplementation "org.spockframework:spock-core"
+    testImplementation "org.apache.groovy:groovy:${groovyVer}"
+    testImplementation "org.apache.plc4x:plc4j-api:${plc4xVer}"
+    testImplementation "org.apache.plc4x:plc4j-spi:${plc4xVer}"
+    testImplementation "org.apache.plc4x:plc4j-driver-mock:${plc4xVer}"
+    testImplementation "org.apache.plc4x:plc4j-driver-simulated:${plc4xVer}"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+// by default the Java plugin runs test on build, change to not do that (only run test if explicit task)
+check.dependsOn.clear()
+
+task cleanLib(type: Delete) { delete fileTree(dir: projectDir.absolutePath+'/lib', include: '*') }
+clean.dependsOn cleanLib
+
+jar {
+    destinationDirectory = file(projectDir.absolutePath + '/lib')
+    archiveBaseName = jarBaseName
+}
+task copyDependencies { doLast {
+    copy { from (configurations.runtimeClasspath - project(':framework').configurations.runtimeClasspath - project(':framework').jar.archiveFile.get().asFile)
+        into file(projectDir.absolutePath + '/lib') }
+} }
+copyDependencies.dependsOn cleanLib
+jar.dependsOn copyDependencies
+
+test {
+    useJUnitPlatform()
+
+    dependsOn cleanTest
+    systemProperty 'moqui.runtime', moquiDir.absolutePath + '/runtime'
+    systemProperty 'moqui.conf', 'conf/MoquiDevConf.xml'
+    systemProperty 'moqui.init.static', 'true'
+    maxHeapSize = '512M'
+
+    testLogging.showStandardStreams = true
+
+    classpath += files(sourceSets.main.output.classesDirs)
+    // filter out classpath entries that don't exist (gradle adds a bunch of these), or ElasticSearch JarHell will blow up
+    classpath = classpath.filter { it.exists() }
+
+    beforeTest { descriptor ->
+        logger.lifecycle("Running test: ${descriptor}")
+    }
+}

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- No copyright or license for configuration file, details here are not considered a creative work. -->
+<moqui-conf xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/moqui-conf-3.xsd">
+
+    <default-property name="plc4j_cached_connection" value="true"/>
+    <default-property name="plc4j_default_connection_timeout" value="10000"/>
+
+    <tools>
+        <tool-factory class="org.moqui.plc4j.Plc4jToolFactory" init-priority="20" disabled="false"/>
+    </tools>
+</moqui-conf>
