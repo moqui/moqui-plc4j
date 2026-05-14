@@ -73,4 +73,48 @@ along with this software (see the LICENSE.md file). If not, see
         sequenceNum="2" query="STATE/9003:UINT" itemTypeEnumId="DritWord"/>
     <moqui.device.DeviceRequestItem requestName="SimulatedReadCyclicData" parameterId="9004"
         sequenceNum="3" query="STATE/9004:BOOL" itemTypeEnumId="DritBool"/>
+
+    <!-- Device connection using Modbus TCP to ModbusPal simulator (slave ID 1, port 1508) -->
+    <!-- Connection string built by Plc4jUtil: modbus-tcp:tcp://127.0.0.1:1508?unit-identifier=1 -->
+    <moqui.device.DeviceConnection connectionName="ModbusPlcConnection" deviceId="VIRTUAL_PLC"
+        driverEnumId="DcdModbusTCP" transportEnumId="DctrTcp" transportConfig="127.0.0.1:1508"
+        options="unit-identifier=1"/>
+
+    <!-- Modbus write holding registers: one request per tag (PLC4X Modbus supports only single-tag requests) -->
+    <moqui.device.DeviceRequest requestName="ModbusWriteReference" deviceId="VIRTUAL_PLC" priority="5"
+        purposeEnumId="DrpControl" routerEnumId="DrrDirect" connectionName="ModbusPlcConnection"
+        requestTypeEnumId="DrtWrite"
+        runServiceName="moqui.plc4j.Plc4jServices.run#Plc4jRequest" timeout="10000" onlyChangedParameters="N"/>
+    <moqui.device.DeviceRequestItem requestName="ModbusWriteReference" parameterId="9000"
+        sequenceNum="1" query="holding-register:2:UINT" itemTypeEnumId="DritWord"/>
+
+    <moqui.device.DeviceRequest requestName="ModbusWriteControlWord" deviceId="VIRTUAL_PLC" priority="5"
+        purposeEnumId="DrpControl" routerEnumId="DrrDirect" connectionName="ModbusPlcConnection"
+        requestTypeEnumId="DrtWrite"
+        runServiceName="moqui.plc4j.Plc4jServices.run#Plc4jRequest" timeout="10000" onlyChangedParameters="N"/>
+    <moqui.device.DeviceRequestItem requestName="ModbusWriteControlWord" parameterId="9002"
+        sequenceNum="1" query="holding-register:1:UINT" itemTypeEnumId="DritWord"/>
+
+    <!-- Modbus read holding registers (FC3): one request per tag -->
+    <moqui.device.DeviceRequest requestName="ModbusReadReference" deviceId="VIRTUAL_PLC" priority="6"
+        purposeEnumId="DrpMonitoring" routerEnumId="DrrDirect" connectionName="ModbusPlcConnection"
+        requestTypeEnumId="DrtRead"
+        runServiceName="moqui.plc4j.Plc4jServices.run#Plc4jRequest" timeout="10000"/>
+    <moqui.device.DeviceRequestItem requestName="ModbusReadReference" parameterId="9000"
+        sequenceNum="1" query="holding-register:2:UINT" itemTypeEnumId="DritWord"/>
+
+    <moqui.device.DeviceRequest requestName="ModbusReadControlWord" deviceId="VIRTUAL_PLC" priority="6"
+        purposeEnumId="DrpMonitoring" routerEnumId="DrrDirect" connectionName="ModbusPlcConnection"
+        requestTypeEnumId="DrtRead"
+        runServiceName="moqui.plc4j.Plc4jServices.run#Plc4jRequest" timeout="10000"/>
+    <moqui.device.DeviceRequestItem requestName="ModbusReadControlWord" parameterId="9002"
+        sequenceNum="1" query="holding-register:1:UINT" itemTypeEnumId="DritWord"/>
+
+    <!-- Modbus read coil only (FC1): Fault ← coil 1 (wire address 0 → ModbusPal coil[0]) -->
+    <moqui.device.DeviceRequest requestName="ModbusReadCoil" deviceId="VIRTUAL_PLC" priority="7"
+        purposeEnumId="DrpMonitoring" routerEnumId="DrrDirect" connectionName="ModbusPlcConnection"
+        requestTypeEnumId="DrtRead"
+        runServiceName="moqui.plc4j.Plc4jServices.run#Plc4jRequest" timeout="10000"/>
+    <moqui.device.DeviceRequestItem requestName="ModbusReadCoil" parameterId="9004"
+        sequenceNum="1" query="coil:1:BOOL" itemTypeEnumId="DritBool"/>
 </entity-facade-xml>

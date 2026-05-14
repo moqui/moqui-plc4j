@@ -8,7 +8,7 @@
 <flowcontrol xonxoff="false" rtscts="false" />
 </serial>
 </links>
-<slave id="1" enabled="true" name="ABB ACH580" implementation="modbus">
+<slave id="127.0.0.1" enabled="true" name="1" implementation="modbus">
 <holding_registers>
 <register address="0" value="1" name="MainControlWord"/>
 <register address="1" value="2" name="MainStatusWord"/>
