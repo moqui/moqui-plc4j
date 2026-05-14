@@ -100,6 +100,15 @@ along with this software (see the LICENSE.md file). If not, see
     <moqui.device.DeviceRequestItem requestName="ModbusReadRegisters" parameterId="9002"
         sequenceNum="2" query="holding-register:1:UINT" itemTypeEnumId="DritWord"/>
 
+    <!-- Error-propagation test fixture: address 0 is invalid in PLC4X (logical address 0 ≤ 0) so
+         the driver throws, which must surface as a Moqui error for non-DrpLogging requests -->
+    <moqui.device.DeviceRequest requestName="ModbusReadBadAddress" deviceId="VIRTUAL_PLC" priority="99"
+        purposeEnumId="DrpMonitoring" routerEnumId="DrrDirect" connectionName="ModbusPlcConnection"
+        requestTypeEnumId="DrtRead"
+        runServiceName="moqui.plc4j.Plc4jServices.run#Plc4jRequest" timeout="10000"/>
+    <moqui.device.DeviceRequestItem requestName="ModbusReadBadAddress" parameterId="9000"
+        sequenceNum="1" query="holding-register:0:UINT" itemTypeEnumId="DritWord"/>
+
     <!-- Modbus read coil only (FC1): Fault ← coil 1 (wire address 0 → ModbusPal coil[0]) -->
     <moqui.device.DeviceRequest requestName="ModbusReadCoil" deviceId="VIRTUAL_PLC" priority="7"
         purposeEnumId="DrpMonitoring" routerEnumId="DrrDirect" connectionName="ModbusPlcConnection"

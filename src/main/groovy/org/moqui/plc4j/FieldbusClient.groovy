@@ -114,6 +114,7 @@ class FieldbusClient implements Closeable, AutoCloseable {
             } else {
                 // single value per tagName
                 EntityValue requestItem = requestItemList.find { item -> tagName == item.parameterId }
+                if (!requestItem) { logger.warn("No request item for tag ${tagName} in device request ${request.requestName}, skipping"); continue }
                 updatedParameter = Plc4jUtil.processInputValue(requestItem, readResponse.getPlcValue(tagName))
                 if (request.purposeEnumId == 'DrpLogging') updatedParameter = buildParameterLog(updatedParameter)
                 updatedParameterList.add(updatedParameter)
@@ -222,18 +223,20 @@ class FieldbusClient implements Closeable, AutoCloseable {
         for (String responseTagName in subscriptionResponse.getTagNames()) {
             final PlcSubscriptionHandle subscriptionHandle = subscriptionResponse.getSubscriptionHandle(responseTagName)
 
+            // Errors inside the subscription callback are logged only — the callback runs in a
+            // driver-managed thread where throwing would silently swallow the exception anyway.
             subscriptionHandle.register((PlcSubscriptionEvent subscriptionEvent) -> {
                 ExecutionContext localEc = Moqui.getExecutionContext()
                 try {
                     localEc.artifactExecution.disableAuthz()
                     localEc.user.loginAnonymousIfNoUser()
-   
+
                     // response processing
                     List updatedParameterList = []
                     EntityValue updatedParameter
                     for (String tagName in subscriptionEvent.getTagNames()) {
                         if (subscriptionEvent.getResponseCode(tagName) != PlcResponseCode.OK) {
-                            logger.error("Error receiving tag ${tagName} for device request with name ${request.requestName}. Response code: ${subscriptionEvent.getResponseCode(tagName).name()}")
+                            logger.error("Error receiving tag ${tagName} for device request ${request.requestName}: ${subscriptionEvent.getResponseCode(tagName).name()}")
                             continue
                         }
 
@@ -249,6 +252,7 @@ class FieldbusClient implements Closeable, AutoCloseable {
                         } else {
                             // single value per tagName
                             EntityValue requestItem = requestItemList.find { item -> tagName.equals(item.parameterId) }
+                            if (!requestItem) { logger.warn("No request item for tag ${tagName} in subscription ${request.requestName}, skipping"); continue }
                             updatedParameter = Plc4jUtil.processInputValue(requestItem, subscriptionEvent.getPlcValue(tagName))
                             if (request.purposeEnumId == 'DrpLogging') updatedParameter = buildParameterLog(updatedParameter)
                             updatedParameterList.add(updatedParameter)
@@ -277,7 +281,7 @@ class FieldbusClient implements Closeable, AutoCloseable {
         if (request.requestName) names.add(request.requestName)
         if (requestItemList) names.addAll(requestItemList*.parameterId)
 
-        int connectionTimeout = (request.timeout ?: System.getProperty("plc4j_default_connection_timeout")) as int
+        int connectionTimeout = request.timeout ? request.timeout as int : Integer.getInteger("plc4j_default_connection_timeout", 5000)
         int success = tool.unsubscribe(names, connection, connectionTimeout)
         logger.info("Unsubscribed ${success}/${names.size()} tags for request ${request.requestName}.")
     }
