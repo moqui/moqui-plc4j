@@ -222,6 +222,19 @@ class Plc4jServiceTests extends Specification {
             fault.symbolicValue == 'Y'
     }
 
+    def "communication error on non-DrpLogging request surfaces as Moqui message error"() {
+        given: "a device request whose tag address is invalid in PLC4X (logical address 0 is rejected)"
+            assert ec.entity.find("moqui.device.DeviceRequest").condition("requestName", "ModbusReadBadAddress").one()
+            ec.message.clearErrors()
+
+        when: "calling the request"
+            ec.service.sync().name("moqui.device.DeviceServices.run#DeviceRequest")
+                .parameters([requestName: "ModbusReadBadAddress"]).disableAuthz().call()
+
+        then: "the driver error is propagated to the Moqui message context"
+            ec.message.hasError()
+    }
+
     // helpers
     private static void waitForPortOrFail(String host, int port, Duration timeout) {
         def deadline = Instant.now().plus(timeout)
