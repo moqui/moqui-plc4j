@@ -76,18 +76,20 @@ class FieldbusClient implements Closeable, AutoCloseable {
         int connectionTimeout = request.timeout ? request.timeout as int : Integer.getInteger("plc4j_default_connection_timeout", 5000)
         final PlcReadRequest readRequest = builder.build()
         final PlcReadResponse readResponse
+        boolean logging = ('DrpLogging' == request.purposeEnumId)
         try {
             readResponse = readRequest.execute().get(connectionTimeout, TimeUnit.MILLISECONDS)
         } catch (TimeoutException e) {
-            logger.error("Timeout reading device request ${request.requestName} after ${connectionTimeout}ms")
-            return
+            String msg = "Timeout reading device request ${request.requestName} after ${connectionTimeout}ms"
+            if (logging) { logger.warn(msg); return }
+            throw new BaseException(msg, e)
         } catch (ExecutionException e) {
-            logger.error("Execution error reading device request ${request.requestName}: ${e.cause?.message ?: e.message}", e)
-            return
+            String msg = "Execution error reading device request ${request.requestName}: ${e.cause?.message ?: e.message}"
+            if (logging) { logger.error(msg, e); return }
+            throw new BaseException(msg, e)
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt()
-            logger.error("Interrupted reading device request ${request.requestName}")
-            return
+            throw new BaseException("Interrupted reading device request ${request.requestName}", e)
         }
 
         // response processing
@@ -95,8 +97,9 @@ class FieldbusClient implements Closeable, AutoCloseable {
         EntityValue updatedParameter
         for (String tagName in readResponse.getTagNames()) {
             if (readResponse.getResponseCode(tagName) != PlcResponseCode.OK) {
-                logger.error("Error reading tag ${tagName} for device request with name ${request.requestName}. Response code: ${readResponse.getResponseCode(tagName).name()}")
-                continue
+                String msg = "Error reading tag ${tagName} for device request ${request.requestName}: ${readResponse.getResponseCode(tagName).name()}"
+                if (logging) { logger.error(msg); continue }
+                throw new BaseException(msg)
             }
 
             if (tagName == request.requestName) {
@@ -147,24 +150,28 @@ class FieldbusClient implements Closeable, AutoCloseable {
         int connectionTimeout = request.timeout ? request.timeout as int : Integer.getInteger("plc4j_default_connection_timeout", 5000)
         final PlcWriteRequest writeRequest = builder.build()
         final PlcWriteResponse writeResponse
+        boolean logging = ('DrpLogging' == request.purposeEnumId)
         try {
             writeResponse = writeRequest.execute().get(connectionTimeout, TimeUnit.MILLISECONDS)
         } catch (TimeoutException e) {
-            logger.error("Timeout writing device request ${request.requestName} after ${connectionTimeout}ms")
-            return
+            String msg = "Timeout writing device request ${request.requestName} after ${connectionTimeout}ms"
+            if (logging) { logger.warn(msg); return }
+            throw new BaseException(msg, e)
         } catch (ExecutionException e) {
-            logger.error("Execution error writing device request ${request.requestName}: ${e.cause?.message ?: e.message}", e)
-            return
+            String msg = "Execution error writing device request ${request.requestName}: ${e.cause?.message ?: e.message}"
+            if (logging) { logger.error(msg, e); return }
+            throw new BaseException(msg, e)
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt()
-            logger.error("Interrupted writing device request ${request.requestName}")
-            return
+            throw new BaseException("Interrupted writing device request ${request.requestName}", e)
         }
 
         // response processing
         for (String tagName : writeResponse.getTagNames()) {
             if (writeResponse.getResponseCode(tagName) != PlcResponseCode.OK) {
-                throw new BaseException("Error writing tag ${tagName} for device request with name ${request.requestName}. Response code: ${writeResponse.getResponseCode(tagName).name()}")
+                String msg = "Error writing tag ${tagName} for device request ${request.requestName}: ${writeResponse.getResponseCode(tagName).name()}"
+                if (logging) { logger.error(msg); continue }
+                throw new BaseException(msg)
             }
         }
     }
@@ -196,18 +203,20 @@ class FieldbusClient implements Closeable, AutoCloseable {
         int connectionTimeout = request.timeout ? request.timeout as int : Integer.getInteger("plc4j_default_connection_timeout", 5000)
         final PlcSubscriptionRequest subscriptionRequest = builder.build()
         final PlcSubscriptionResponse subscriptionResponse
+        boolean logging = ('DrpLogging' == request.purposeEnumId)
         try {
             subscriptionResponse = subscriptionRequest.execute().get(connectionTimeout, TimeUnit.MILLISECONDS)
         } catch (TimeoutException e) {
-            logger.error("Timeout subscribing device request ${request.requestName} after ${connectionTimeout}ms")
-            return
+            String msg = "Timeout subscribing device request ${request.requestName} after ${connectionTimeout}ms"
+            if (logging) { logger.warn(msg); return }
+            throw new BaseException(msg, e)
         } catch (ExecutionException e) {
-            logger.error("Execution error subscribing device request ${request.requestName}: ${e.cause?.message ?: e.message}", e)
-            return
+            String msg = "Execution error subscribing device request ${request.requestName}: ${e.cause?.message ?: e.message}"
+            if (logging) { logger.error(msg, e); return }
+            throw new BaseException(msg, e)
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt()
-            logger.error("Interrupted subscribing device request ${request.requestName}")
-            return
+            throw new BaseException("Interrupted subscribing device request ${request.requestName}", e)
         }
 
         for (String responseTagName in subscriptionResponse.getTagNames()) {
