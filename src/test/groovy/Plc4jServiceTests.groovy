@@ -178,6 +178,66 @@ class Plc4jServiceTests extends Specification {
             mainStatusWord.parameterEnumId == '1000010001101001'
     }
 
+    def "write then read back via Modbus TCP (round-trip through ModbusPal)"() {
+        given: "seeded Modbus device requests and ModbusPal running on port ${port}"
+            assert ec.entity.find("moqui.device.DeviceRequest").condition("requestName", "ModbusWriteReference").one()
+            assert ec.entity.find("moqui.device.DeviceRequest").condition("requestName", "ModbusWriteControlWord").one()
+            assert ec.entity.find("moqui.device.DeviceRequest").condition("requestName", "ModbusReadReference").one()
+            assert ec.entity.find("moqui.device.DeviceRequest").condition("requestName", "ModbusReadControlWord").one()
+            assert ec.entity.find("moqui.device.DeviceRequest").condition("requestName", "ModbusReadCoil").one()
+
+        when: "writing Reference=300 (UINT, register 2) to ModbusPal"
+            ec.service.sync().name("moqui.device.DeviceServices.run#DeviceRequest")
+                .parameters([requestName: "ModbusWriteReference"]).disableAuthz().call()
+
+        then: "no Moqui errors on write Reference"
+            !ec.message.hasError()
+
+        when: "writing MainControlWord (UINT, register 0) to ModbusPal"
+            ec.service.sync().name("moqui.device.DeviceServices.run#DeviceRequest")
+                .parameters([requestName: "ModbusWriteControlWord"]).disableAuthz().call()
+
+        then: "no Moqui errors on write MainControlWord"
+            !ec.message.hasError()
+
+        when: "shifting parameter 9000 away from 300 so the read will trigger an entity update"
+            ec.entity.find("moqui.math.Parameter").condition("parameterId", "9000")
+                .useCache(false).one().set("numericValue", 999.0G).update()
+
+        and: "reading Reference (FC3, register 2)"
+            ec.service.sync().name("moqui.device.DeviceServices.run#DeviceRequest")
+                .parameters([requestName: "ModbusReadReference"]).disableAuthz().call()
+
+        then: "no Moqui errors on read Reference"
+            !ec.message.hasError()
+
+        and: "Reference round-trips as UINT16 through Modbus (register 2 → 300)"
+            def reference = ec.entity.find("moqui.math.Parameter").condition("parameterId", "9000").useCache(false).one()
+            reference.numericValue == 300.0G
+
+        when: "reading MainControlWord (FC3, register 0)"
+            ec.service.sync().name("moqui.device.DeviceServices.run#DeviceRequest")
+                .parameters([requestName: "ModbusReadControlWord"]).disableAuthz().call()
+
+        then: "no Moqui errors on read MainControlWord"
+            !ec.message.hasError()
+
+        and: "MainControlWord round-trips as UINT16 through Modbus (register 0 → bit pattern)"
+            def mainControlWord = ec.entity.find("moqui.math.Parameter").condition("parameterId", "9002").useCache(false).one()
+            mainControlWord.parameterEnumId == '1000010001101111'
+
+        when: "reading coil (FC1): Fault ← coil 0"
+            ec.service.sync().name("moqui.device.DeviceServices.run#DeviceRequest")
+                .parameters([requestName: "ModbusReadCoil"]).disableAuthz().call()
+
+        then: "no Moqui errors on coil read"
+            !ec.message.hasError()
+
+        and: "Fault coil reads as active (coil 0 = 1 in ModbusPal initial state)"
+            def fault = ec.entity.find("moqui.math.Parameter").condition("parameterId", "9004").useCache(false).one()
+            fault.symbolicValue == 'Y'
+    }
+
     // helpers
     private static void waitForPortOrFail(String host, int port, Duration timeout) {
         def deadline = Instant.now().plus(timeout)
