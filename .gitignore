@@ -1,7 +1,6 @@
-
 # runtime added files
-build/
-lib/
+build
+lib/test-*.jar
 logs/
 *.log
 
